@@ -62,15 +62,40 @@ __attribute__((annotate("returns_localized_nsstring"))) static inline NSString *
 + (instancetype)wmf_placesActivityWithURL:(NSURL *)activityURL {
     NSURLComponents *components = [NSURLComponents componentsWithURL:activityURL resolvingAgainstBaseURL:NO];
     NSURL *articleURL = nil;
+    double latitude = NAN;
+    double longitude = NAN;
+    
+    // alternatively we could use wmf_valueForQueryKey
+    // but we will iterate over the query items three times in that case
     for (NSURLQueryItem *item in components.queryItems) {
         if ([item.name isEqualToString:@"WMFArticleURL"]) {
             NSString *articleURLString = item.value;
             articleURL = [NSURL URLWithString:articleURLString];
-            break;
+        } else if ([item.name caseInsensitiveCompare:@"latitude"] == NSOrderedSame) {
+            latitude = [item.value doubleValue];
+        } else if ([item.name caseInsensitiveCompare:@"longitude"] == NSOrderedSame) {
+            longitude = [item.value doubleValue];
         }
     }
+       
     NSUserActivity *activity = [self wmf_pageActivityWithName:@"Places"];
     activity.webpageURL = articleURL;
+    
+    // Ensure activity.userInfo is initialized
+    if (!activity.userInfo) {
+        activity.userInfo = @{};
+    }
+
+    // Create a mutable copy of the current userInfo dictionary and add the latitude and longitude
+    NSMutableDictionary *userInfo = [activity.userInfo mutableCopy];
+    if (!isnan(latitude) && !isnan(longitude)) {
+        userInfo[@"latitude"] = @(latitude);
+        userInfo[@"longitude"] = @(longitude);
+    }
+
+    // Assign the updated dictionary back to activity.userInfo
+    activity.userInfo = [userInfo copy];
+    
     return activity;
 }
 
