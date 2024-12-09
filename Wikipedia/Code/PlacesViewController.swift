@@ -8,6 +8,7 @@ import MapKit
 class PlacesViewController: ViewController, UISearchBarDelegate, ArticlePopoverViewControllerDelegate, PlaceSearchSuggestionControllerDelegate, NSFetchedResultsControllerDelegate, UIPopoverPresentationControllerDelegate, ArticlePlaceViewDelegate, UIGestureRecognizerDelegate, HintPresenting {
 
     fileprivate var mapView: MapView!
+    fileprivate var locationForFirstAppearance: CLLocation?
 
     @IBOutlet weak var mapContainerView: UIView!
     
@@ -253,6 +254,15 @@ class PlacesViewController: ViewController, UISearchBarDelegate, ArticlePopoverV
         mapView.showsUserLocation = true
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        if let locationForFirstAppearance = locationForFirstAppearance {
+            mapView.showsUserLocation = false
+            self.zoomAndPanMapView(toLocation: locationForFirstAppearance)
+            self.locationForFirstAppearance = nil
+        }
+    }
+    
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         NotificationCenter.default.removeObserver(self, name: UIWindow.keyboardWillShowNotification, object: nil)
@@ -2129,6 +2139,10 @@ class PlacesViewController: ViewController, UISearchBarDelegate, ArticlePopoverV
     }
     
     @objc func zoomAndPanMapView(toLocation location: CLLocation) {
+        if (isFirstAppearance) {
+            self.locationForFirstAppearance = location
+            return
+        }
         let region = [location.coordinate].wmf_boundingRegion(with: 10000)
         mapRegion = region
         if let searchRegion = currentSearchRegion, isDistanceSignificant(betweenRegion: searchRegion, andRegion: region) {
@@ -2382,7 +2396,10 @@ extension PlacesViewController: LocationManagerDelegate {
             return
         }
         panMapToNextLocationUpdate = false
-        zoomAndPanMapView(toLocation: location)
+        if locationForFirstAppearance != nil {
+            // ignore first location update if it was saved for first appearance
+            zoomAndPanMapView(toLocation: location)
+        }
     }
 
     func locationManager(_ locationManager: LocationManagerProtocol, didUpdate heading: CLHeading) {
